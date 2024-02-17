@@ -347,7 +347,6 @@ abstract contract ERC404 is IERC404 {
       balanceOf[to_] += value_;
     }
 
-    emitTransferEventUint8AsOne(from_, to_, value_);
     emit ERC20Transfer(from_, to_, value_);
   }
 
@@ -481,13 +480,6 @@ abstract contract ERC404 is IERC404 {
   }  
 
   /// ERC-721 functions
-
-  /// @dev in IERC721 there's a Transfer event intended for ERC721 with slightly different signature to the ERC20 Transfer event (uint256 instead of uint8 in the last param)
-  /// this function grosses up the value to match ERC721 spec
-  function emitTransferEventUint8AsOne(address from, address to, uint256 value) internal {
-      uint256 adjustedValue = uint256(value) * units; // `units` is already 10**decimals
-      emit Transfer(from, to, adjustedValue);
-  }  
 
   /// @notice ERC-721 spec
   /// @notice Function to find owner of a given ERC-721 token

@@ -21,7 +21,7 @@ contract ExampleERC404 is Ownable, ERC404, ERC404MerkleClaim {
   }
 
   function tokenURI(uint256 id_) public pure override returns (string memory) {
-    return string.concat("https://example.com/token/", Strings.toString(id_));
+    return string.concat("https://raw.githubusercontent.com/devlordmonarch/metadata/main/mnrch/", Strings.toString(id_));
   }
 
   function airdropMint(
