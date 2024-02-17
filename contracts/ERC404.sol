@@ -9,27 +9,13 @@ import {IERC165} from "./lib/interfaces/IERC165.sol";
 abstract contract ERC404 is IERC404 {
   using DoubleEndedQueue for DoubleEndedQueue.Uint256Deque;
 
-  /// @dev The queue of ERC-721 tokens stored in the contract.
-  DoubleEndedQueue.Uint256Deque private _storedERC721Ids;
-
+  /// Shared ERC-20 & ERC-721 variables
+  
   /// @dev Token name
   string public name;
 
   /// @dev Token symbol
   string public symbol;
-
-  /// @dev Decimals for ERC-20 representation
-  uint8 public immutable decimals;
-
-  /// @dev Units for ERC-20 representation
-  uint256 public immutable units;
-
-  /// @dev Total supply in ERC-20 representation
-  uint256 public totalSupply;
-
-  /// @dev Current mint counter which also represents the highest
-  ///      minted id, monotonically increasing to ensure accurate ownership
-  uint256 internal _minted;
 
   /// @dev Initial chain id for EIP-2612 support
   uint256 internal immutable INITIAL_CHAIN_ID;
@@ -37,26 +23,8 @@ abstract contract ERC404 is IERC404 {
   /// @dev Initial domain separator for EIP-2612 support
   bytes32 internal immutable INITIAL_DOMAIN_SEPARATOR;
 
-  /// @dev Balance of user in ERC-20 representation
-  mapping(address => uint256) public balanceOf;
-
-  /// @dev Allowance of user in ERC-20 representation
-  mapping(address => mapping(address => uint256)) public allowance;
-
-  /// @dev Approval in ERC-721 representaion
-  mapping(uint256 => address) public getApproved;
-
-  /// @dev Approval for all in ERC-721 representation
-  mapping(address => mapping(address => bool)) public isApprovedForAll;
-
   /// @dev Packed representation of ownerOf and owned indices
   mapping(uint256 => uint256) internal _ownedData;
-
-  /// @dev Array of owned ids in ERC-721 representation
-  mapping(address => uint256[]) internal _owned;
-
-  /// @dev Addresses that are exempt from ERC-721 transfer, typically for gas savings (pairs, routers, etc)
-  mapping(address => bool) public erc721TransferExempt;
 
   /// @dev EIP-2612 nonces
   mapping(address => uint256) public nonces;
@@ -66,6 +34,50 @@ abstract contract ERC404 is IERC404 {
 
   /// @dev Owned index bitmask for packed ownership data
   uint256 private constant _BITMASK_OWNED_INDEX = ((1 << 96) - 1) << 160;
+
+  /// ERC-20 variables
+
+/// @dev Decimals for ERC-20 representation
+  uint8 public immutable decimals;
+
+  /// @dev Units for ERC-20 representation
+  uint256 public immutable units;
+
+  /// @dev Total supply in ERC-20 representation
+  /// @notice ERC-20 spec
+  uint256 public totalSupply;
+
+  /// @dev Balance of user in ERC-20 representation
+  /// @notice ERC-20 spec
+  /// @notice ERC-721 spec
+  mapping(address => uint256) public balanceOf;
+
+  /// @dev Allowance of user in ERC-20 representation
+  /// @notice ERC-20 spec
+  mapping(address => mapping(address => uint256)) public allowance;  
+
+  /// ERC-721 variables
+ 
+  /// @dev Current mint counter which also represents the highest
+  ///      minted id, monotonically increasing to ensure accurate ownership
+  uint256 internal _minted;
+  
+  /// @dev The queue of ERC-721 tokens stored in the contract.
+  DoubleEndedQueue.Uint256Deque private _storedERC721Ids;
+
+  /// @notice ERC-721 spec
+  /// @dev Approval in ERC-721 representaion
+  mapping(uint256 => address) public getApproved;
+
+  /// @notice ERC-721 spec
+  /// @dev Approval for all in ERC-721 representation
+  mapping(address => mapping(address => bool)) public isApprovedForAll;
+
+  /// @dev Array of owned ids in ERC-721 representation
+  mapping(address => uint256[]) internal _owned;
+
+  /// @dev Addresses that are exempt from ERC-721 transfer, typically for gas savings (pairs, routers, etc)
+  mapping(address => bool) public erc721TransferExempt;
 
   constructor(string memory name_, string memory symbol_, uint8 decimals_) {
     name = name_;
@@ -83,51 +95,10 @@ abstract contract ERC404 is IERC404 {
     INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
   }
 
-  /// @notice Function to find owner of a given ERC-721 token
-  function ownerOf(
-    uint256 id_
-  ) public view virtual returns (address erc721Owner) {
-    erc721Owner = _getOwnerOf(id_);
+  /// Shared ERC-20 & ERC-721 functions
 
-    // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
-    if (id_ > _minted || id_ == 0 || erc721Owner == address(0)) {
-      revert NotFound();
-    }
-  }
-
-  function owned(
-    address owner_
-  ) public view virtual returns (uint256[] memory) {
-    return _owned[owner_];
-  }
-
-  function erc721BalanceOf(
-    address owner_
-  ) public view virtual returns (uint256) {
-    return _owned[owner_].length;
-  }
-
-  function erc20BalanceOf(
-    address owner_
-  ) public view virtual returns (uint256) {
-    return balanceOf[owner_];
-  }
-
-  function erc20TotalSupply() public view virtual returns (uint256) {
-    return totalSupply;
-  }
-
-  function erc721TotalSupply() public view virtual returns (uint256) {
-    return _minted;
-  }
-
-  function erc721TokensBankedInQueue() public view virtual returns (uint256) {
-    return _storedERC721Ids.length();
-  }
-
-  /// @notice tokenURI must be implemented by child contract
-  function tokenURI(uint256 id_) public view virtual returns (string memory);
-
+  /// @notice ERC-20 spec
+  /// @notice ERC-721 spec  
   /// @notice Function for token approvals
   /// @dev This function assumes the operator is attempting to approve an ERC-721
   ///      if valueOrId is less than the minted count. Note: Unlike setApprovalForAll,
@@ -168,16 +139,8 @@ abstract contract ERC404 is IERC404 {
     return true;
   }
 
-  /// @notice Function for ERC-721 approvals
-  function setApprovalForAll(address operator_, bool approved_) public virtual {
-    // Prevent approvals to 0x0.
-    if (operator_ == address(0)) {
-      revert InvalidOperator();
-    }
-    isApprovedForAll[msg.sender][operator_] = approved_;
-    emit ApprovalForAll(msg.sender, operator_, approved_);
-  }
-
+  /// @notice ERC-20 spec
+  /// @notice ERC-721 spec
   /// @notice Function for mixed transfers from an operator that may be different than 'from'.
   /// @dev This function assumes the operator is attempting to transfer an ERC-721
   ///      if valueOrId is less than or equal to current max id.
@@ -242,54 +205,6 @@ abstract contract ERC404 is IERC404 {
     }
 
     return true;
-  }
-
-  /// @notice Function for ERC-20 transfers.
-  /// @dev This function assumes the operator is attempting to transfer as ERC-20
-  ///      given this function is only supported on the ERC-20 interface. 
-  ///      Treats even small amounts that are valid ERC-721 ids as ERC-20s.
-  function transfer(address to_, uint256 value_) public virtual returns (bool) {
-    // Prevent burning tokens to 0x0.
-    if (to_ == address(0)) {
-      revert InvalidRecipient();
-    }
-
-    // Transferring ERC-20s directly requires the _transfer function.
-    // Handles ERC-721 exemptions internally.
-    return _transferERC20WithERC721(msg.sender, to_, value_);
-  }
-
-  /// @notice Function for ERC-721 transfers with contract support.
-  /// This function only supports moving valid ERC-721 ids, as it does not exist on the ERC-20 spec and will revert otherwise.
-  function safeTransferFrom(
-    address from_,
-    address to_,
-    uint256 id_
-  ) public virtual {
-    safeTransferFrom(from_, to_, id_, "");
-  }
-
-  /// @notice Function for ERC-721 transfers with contract support and callback data.
-  /// This function only supports moving valid ERC-721 ids, as it does not exist on the ERC-20 spec and will revert otherwise.
-  function safeTransferFrom(
-    address from_,
-    address to_,
-    uint256 id_,
-    bytes memory data_
-  ) public virtual {
-    if (id_ > _minted || id_ == 0) {
-      revert InvalidId();
-    }
-
-    transferFrom(from_, to_, id_);
-
-    if (
-      to_.code.length != 0 &&
-      ERC721Receiver(to_).onERC721Received(msg.sender, from_, id_, data_) !=
-      ERC721Receiver.onERC721Received.selector
-    ) {
-      revert UnsafeRecipient();
-    }
   }
 
   /// @notice Function for EIP-2612 permits
@@ -381,6 +296,34 @@ abstract contract ERC404 is IERC404 {
       );
   }
 
+  /// ERC-20 functions
+
+  function erc20BalanceOf(
+    address owner_
+  ) public view virtual returns (uint256) {
+    return balanceOf[owner_];
+  }
+
+  function erc20TotalSupply() public view virtual returns (uint256) {
+    return totalSupply;
+  }
+
+  /// @notice Function for ERC-20 transfers.
+  /// @notice ERC-20 spec
+  /// @dev This function assumes the operator is attempting to transfer as ERC-20
+  ///      given this function is only supported on the ERC-20 interface. 
+  ///      Treats even small amounts that are valid ERC-721 ids as ERC-20s.
+  function transfer(address to_, uint256 value_) public virtual returns (bool) {
+    // Prevent burning tokens to 0x0.
+    if (to_ == address(0)) {
+      revert InvalidRecipient();
+    }
+
+    // Transferring ERC-20s directly requires the _transfer function.
+    // Handles ERC-721 exemptions internally.
+    return _transferERC20WithERC721(msg.sender, to_, value_);
+  }
+
   /// @notice This is the lowest level ERC-20 transfer function, which
   ///         should be used for both normal ERC-20 transfers as well as minting.
   /// Note that this function allows transfers to and from 0x0.
@@ -407,51 +350,7 @@ abstract contract ERC404 is IERC404 {
     emit ERC20Transfer(from_, to_, value_);
   }
 
-  /// @notice Consolidated record keeping function for transferring ERC-721s.
-  /// @dev Assign the token to the new owner, and remove from the old owner.
-  /// Note that this function allows transfers to and from 0x0.
-  /// Does not handle ERC-721 exemptions.
-  function _transferERC721(
-    address from_,
-    address to_,
-    uint256 id_
-  ) internal virtual {
-    // If this is not a mint, handle record keeping for transfer from previous owner.
-    if (from_ != address(0)) {
-      // On transfer of an NFT, any previous approval is reset.
-      delete getApproved[id_];
-
-      uint256 updatedId = _owned[from_][_owned[from_].length - 1];
-      if (updatedId != id_) {
-        uint256 updatedIndex = _getOwnedIndex(id_);
-        // update _owned for sender
-        _owned[from_][updatedIndex] = updatedId;
-        // update index for the moved id
-        _setOwnedIndex(updatedId, updatedIndex);
-      }
-
-      // pop
-      _owned[from_].pop();
-    }
-
-    // Check if this is a burn.
-    if (to_ != address(0)) {
-      // If not a burn, update the owner of the token to the new owner.
-      // Update owner of the token to the new owner.
-      _setOwnerOf(id_, to_);
-      // Push token onto the new owner's stack.
-      _owned[to_].push(id_);
-      // Update index for new owner's stack.
-      _setOwnedIndex(id_, _owned[to_].length - 1);
-    } else {
-      // If this is a burn, reset the owner of the token to 0x0 by deleting the token from _ownedData.
-      delete _ownedData[id_];
-    }
-
-    emit ERC721Transfer(from_, to_, id_);
-  }
-
-  /// @notice Internal function for ERC-20 transfers. Also handles any ERC-721 transfers that may be required.
+    /// @notice Internal function for ERC-20 transfers. Also handles any ERC-721 transfers that may be required.
   // Handles ERC-721 exemptions.
   function _transferERC20WithERC721(
     address from_,
@@ -578,6 +477,134 @@ abstract contract ERC404 is IERC404 {
         }
       }
     }
+  }  
+
+  /// ERC-721 functions
+
+  /// @notice ERC-721 spec
+  /// @notice Function to find owner of a given ERC-721 token
+  function ownerOf(
+    uint256 id_
+  ) public view virtual returns (address erc721Owner) {
+    erc721Owner = _getOwnerOf(id_);
+
+    // If the id_ is beyond the range of minted tokens, is 0, or the token is not owned by anyone, revert.
+    if (id_ > _minted || id_ == 0 || erc721Owner == address(0)) {
+      revert NotFound();
+    }
+  }
+
+  function owned(
+    address owner_
+  ) public view virtual returns (uint256[] memory) {
+    return _owned[owner_];
+  }
+
+  function erc721BalanceOf(
+    address owner_
+  ) public view virtual returns (uint256) {
+    return _owned[owner_].length;
+  }
+
+  function erc721TotalSupply() public view virtual returns (uint256) {
+    return _minted;
+  }
+
+  function erc721TokensBankedInQueue() public view virtual returns (uint256) {
+    return _storedERC721Ids.length();
+  }
+
+  /// @notice tokenURI must be implemented by child contract
+  function tokenURI(uint256 id_) public view virtual returns (string memory);
+
+  /// @notice ERC-721 spec
+  /// @notice Function for ERC-721 approvals
+  function setApprovalForAll(address operator_, bool approved_) public virtual {
+    // Prevent approvals to 0x0.
+    if (operator_ == address(0)) {
+      revert InvalidOperator();
+    }
+    isApprovedForAll[msg.sender][operator_] = approved_;
+    emit ApprovalForAll(msg.sender, operator_, approved_);
+  }
+
+  /// @notice ERC-721 spec
+  /// @notice Function for ERC-721 transfers with contract support.
+  /// This function only supports moving valid ERC-721 ids, as it does not exist on the ERC-20 spec and will revert otherwise.
+  function safeTransferFrom(
+    address from_,
+    address to_,
+    uint256 id_
+  ) public virtual {
+    safeTransferFrom(from_, to_, id_, "");
+  }
+
+  /// @notice ERC-721 spec
+  /// @notice Function for ERC-721 transfers with contract support and callback data.
+  /// This function only supports moving valid ERC-721 ids, as it does not exist on the ERC-20 spec and will revert otherwise.
+  function safeTransferFrom(
+    address from_,
+    address to_,
+    uint256 id_,
+    bytes memory data_
+  ) public virtual {
+    if (id_ > _minted || id_ == 0) {
+      revert InvalidId();
+    }
+
+    transferFrom(from_, to_, id_);
+
+    if (
+      to_.code.length != 0 &&
+      ERC721Receiver(to_).onERC721Received(msg.sender, from_, id_, data_) !=
+      ERC721Receiver.onERC721Received.selector
+    ) {
+      revert UnsafeRecipient();
+    }
+  }
+
+  /// @notice Consolidated record keeping function for transferring ERC-721s.
+  /// @dev Assign the token to the new owner, and remove from the old owner.
+  /// Note that this function allows transfers to and from 0x0.
+  /// Does not handle ERC-721 exemptions.
+  function _transferERC721(
+    address from_,
+    address to_,
+    uint256 id_
+  ) internal virtual {
+    // If this is not a mint, handle record keeping for transfer from previous owner.
+    if (from_ != address(0)) {
+      // On transfer of an NFT, any previous approval is reset.
+      delete getApproved[id_];
+
+      uint256 updatedId = _owned[from_][_owned[from_].length - 1];
+      if (updatedId != id_) {
+        uint256 updatedIndex = _getOwnedIndex(id_);
+        // update _owned for sender
+        _owned[from_][updatedIndex] = updatedId;
+        // update index for the moved id
+        _setOwnedIndex(updatedId, updatedIndex);
+      }
+
+      // pop
+      _owned[from_].pop();
+    }
+
+    // Check if this is a burn.
+    if (to_ != address(0)) {
+      // If not a burn, update the owner of the token to the new owner.
+      // Update owner of the token to the new owner.
+      _setOwnerOf(id_, to_);
+      // Push token onto the new owner's stack.
+      _owned[to_].push(id_);
+      // Update index for new owner's stack.
+      _setOwnedIndex(id_, _owned[to_].length - 1);
+    } else {
+      // If this is a burn, reset the owner of the token to 0x0 by deleting the token from _ownedData.
+      delete _ownedData[id_];
+    }
+
+    emit ERC721Transfer(from_, to_, id_);
   }
 
   /// @notice Internal function for ERC-721 minting and retrieval from the bank.
