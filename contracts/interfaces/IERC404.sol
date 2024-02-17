@@ -15,7 +15,24 @@ interface IERC404 is IERC165 {
     address indexed spender,
     uint256 indexed id
   );
-  event ERC20Transfer(address indexed from, address indexed to, uint256 amount);
+  //ERC20 transfer
+  event Transfer(
+    address indexed from,
+    address indexed to,
+    uint8 amount
+  );
+  //ERC721 transfer
+  event Transfer(
+    address indexed from,
+    address indexed to,
+    uint256 indexed id
+  );
+
+  event ERC20Transfer(
+    address indexed from,
+    address indexed to,
+    uint256 amount
+  );
   event ERC721Transfer(
     address indexed from,
     address indexed to,
